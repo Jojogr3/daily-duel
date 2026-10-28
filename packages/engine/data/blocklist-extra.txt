@@ -1,0 +1,2 @@
+# Extra words to remove from the Word Rush dictionary, one per line.
+# Lines starting with # are ignored. After editing, run: npm run words

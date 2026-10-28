@@ -1,0 +1,48 @@
+name: Deploy backend
+
+# Deploys Cloud Functions, Firestore rules/indexes and the website whenever they change on main.
+# Needs: secret FIREBASE_SERVICE_ACCOUNT (JSON key) and variable FIREBASE_PROJECT_ID. See SETUP.md.
+on:
+  push:
+    branches: [main]
+    paths:
+      - functions/**
+      - packages/engine/**
+      - firestore.rules
+      - firestore.indexes.json
+      - firebase.json
+      - web/**
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CONFIGURED: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' && vars.FIREBASE_PROJECT_ID != '' }}
+    steps:
+      - name: Not configured yet
+        if: env.CONFIGURED != 'true'
+        run: echo "::notice::Skipping deploy until FIREBASE_SERVICE_ACCOUNT and FIREBASE_PROJECT_ID are set (SETUP.md step 3)."
+      - uses: actions/checkout@v5
+        if: env.CONFIGURED == 'true'
+      - uses: actions/setup-node@v5
+        if: env.CONFIGURED == 'true'
+        with:
+          node-version: 22
+      - name: Install and test
+        if: env.CONFIGURED == 'true'
+        run: |
+          npm ci
+          npm test
+      - uses: google-github-actions/auth@v2
+        if: env.CONFIGURED == 'true'
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - name: Deploy
+        if: env.CONFIGURED == 'true'
+        run: npx --yes firebase-tools@latest deploy --project "${{ vars.FIREBASE_PROJECT_ID }}" --only functions,firestore,hosting --force --non-interactive

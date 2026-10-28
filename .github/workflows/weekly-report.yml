@@ -1,0 +1,44 @@
+name: Weekly report
+
+# Every Monday: player counts, retention and subscribers, posted as a GitHub issue
+# (GitHub emails you when it's created).
+on:
+  schedule:
+    - cron: '37 14 * * 1'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    env:
+      CONFIGURED: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' && vars.FIREBASE_PROJECT_ID != '' }}
+    steps:
+      - name: Not configured yet
+        if: env.CONFIGURED != 'true'
+        run: echo "::notice::Skipping until Firebase is connected (SETUP.md step 3)."
+      - uses: actions/checkout@v5
+        if: env.CONFIGURED == 'true'
+      - uses: actions/setup-node@v5
+        if: env.CONFIGURED == 'true'
+        with:
+          node-version: 22
+      - run: npm ci
+        if: env.CONFIGURED == 'true'
+      - uses: google-github-actions/auth@v2
+        if: env.CONFIGURED == 'true'
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - name: Build report
+        if: env.CONFIGURED == 'true'
+        env:
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: node scripts/weekly-report.mjs > report.md
+      - name: Post issue
+        if: env.CONFIGURED == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue create --title "Weekly report $(date -u +%F)" --body-file report.md --label report || gh issue create --title "Weekly report $(date -u +%F)" --body-file report.md

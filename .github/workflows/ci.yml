@@ -1,0 +1,47 @@
+name: CI
+
+# Every push and pull request: run all tests, typecheck everything, and make sure the app bundles.
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install
+        run: if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - name: Word list present
+        run: |
+          if [ ! -s packages/engine/data/words.txt ]; then
+            echo "::warning::Word list missing. Run the 'Bootstrap' workflow once (Actions tab)."
+            npm run words
+          fi
+      - name: Engine and backend tests
+        run: npm test
+      - name: Bundle the app (web export)
+        working-directory: apps/mobile
+        run: npx expo export --platform web --output-dir dist
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build backend
+        run: npm run build -w functions
+      - name: Expo doctor
+        working-directory: apps/mobile
+        run: npx expo-doctor
+        continue-on-error: true
+      - name: Upload web build (playable preview)
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-preview
+          path: apps/mobile/dist
+          retention-days: 7

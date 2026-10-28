@@ -1,0 +1,54 @@
+name: Over-the-air update
+
+# Ships JavaScript-only changes to installed apps in minutes, without a store review.
+# Every push to main goes to the "preview" channel (test builds). Production is manual.
+# Changes to native modules or app.config need a new store build (Release app) instead.
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/mobile/**
+      - packages/engine/**
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Channel
+        type: choice
+        options: [preview, production]
+        default: production
+      message:
+        description: What changed (shown in the EAS dashboard)
+        required: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CONFIGURED: ${{ secrets.EXPO_TOKEN != '' }}
+    steps:
+      - name: Not configured yet
+        if: env.CONFIGURED != 'true'
+        run: echo "::notice::Skipping until EXPO_TOKEN is set (SETUP.md step 4)."
+      - uses: actions/checkout@v5
+        if: env.CONFIGURED == 'true'
+      - uses: actions/setup-node@v5
+        if: env.CONFIGURED == 'true'
+        with:
+          node-version: 22
+      - run: npm ci
+        if: env.CONFIGURED == 'true'
+      - run: npm test
+        if: env.CONFIGURED == 'true'
+      - uses: expo/expo-github-action@v8
+        if: env.CONFIGURED == 'true'
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Publish update
+        if: env.CONFIGURED == 'true'
+        working-directory: apps/mobile
+        env:
+          CHANNEL: ${{ inputs.channel || 'preview' }}
+          MESSAGE: ${{ inputs.message || github.event.head_commit.message }}
+        run: eas update --channel "$CHANNEL" --environment "$CHANNEL" --message "$MESSAGE" --non-interactive

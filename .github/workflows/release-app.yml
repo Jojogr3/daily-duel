@@ -1,0 +1,39 @@
+name: Release app
+
+# Builds the iOS and/or Android app in the cloud (EAS) and submits it to the stores.
+# Android goes to the Play internal testing track as a draft; iOS goes to TestFlight.
+# Promote to production in each store's console when you're happy.
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Which platform
+        type: choice
+        options: [all, ios, android]
+        default: all
+      profile:
+        description: Build profile
+        type: choice
+        options: [production, preview]
+        default: production
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Build${{ inputs.profile == 'production' && ' and submit' || '' }}
+        working-directory: apps/mobile
+        run: |
+          EXTRA=""
+          if [ "${{ inputs.profile }}" = "production" ]; then EXTRA="--auto-submit"; fi
+          eas build --platform ${{ inputs.platform }} --profile ${{ inputs.profile }} --non-interactive --no-wait $EXTRA

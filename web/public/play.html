@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Daily Duel – Can you beat it?</title>
+  <meta name="description" content="A friend challenged you to today's Daily Duel puzzle." />
+  <meta property="og:title" content="Daily Duel – Can you beat it?" />
+  <meta property="og:description" content="One puzzle a day. One rival. Can you win?" />
+  <link rel="stylesheet" href="/site.css" />
+</head>
+<body>
+  <main class="wrap">
+    <div class="mark" aria-hidden="true"><span>D</span><span>D</span></div>
+    <h1>You've been challenged</h1>
+    <p id="what">A friend shared a Daily Duel puzzle with you. Play it free in the app and see who wins.</p>
+    <a id="open" class="btn" href="#">Open in Daily Duel</a>
+    <div class="stores">
+      <a id="ios" class="btn secondary" href="#">Get it on the App Store</a>
+      <a id="android" class="btn secondary" href="#">Get it on Google Play</a>
+    </div>
+    <p class="small"><a href="/">About Daily Duel</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
+  </main>
+  <script>
+    // Store links: replace the ids once the app is live (see SETUP.md).
+    var IOS_URL = 'https://apps.apple.com/app/id0000000000';
+    var ANDROID_URL = 'https://play.google.com/store/apps/details?id=com.worldrunnergames.dailyduel';
+    var NAMES = { 'word-rush': 'Word Rush', 'color-flood': 'Color Flood' };
+
+    var parts = location.pathname.split('/').filter(Boolean); // ["p", mode, date]
+    var mode = NAMES[parts[1]] ? parts[1] : null;
+    var date = /^\d{4}-\d{2}-\d{2}$/.test(parts[2] || '') ? parts[2] : null;
+    var deep = mode && date ? 'dailyduel://p/' + mode + '/' + date : 'dailyduel://';
+    document.getElementById('open').href = deep;
+    document.getElementById('ios').href = IOS_URL;
+    document.getElementById('android').href = ANDROID_URL;
+    if (mode && date) {
+      document.getElementById('what').textContent =
+        'A friend shared the ' + NAMES[mode] + ' puzzle from ' + date + '. Play it free in the app and see who wins.';
+    }
+    var ua = navigator.userAgent;
+    if (/iPhone|iPad|iPod/.test(ua)) document.getElementById('android').style.display = 'none';
+    else if (/Android/.test(ua)) document.getElementById('ios').style.display = 'none';
+  </script>
+</body>
+</html>

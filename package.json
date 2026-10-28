@@ -1,0 +1,20 @@
+{
+  "name": "daily-duel",
+  "private": true,
+  "description": "Daily Duel — a daily puzzle duel game by World Runner Games.",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "functions"
+  ],
+  "engines": {
+    "node": ">=20.19.4"
+  },
+  "scripts": {
+    "words": "node scripts/fetch-words.mjs",
+    "test": "npm run test -w @daily-duel/engine && npm run test -w functions",
+    "typecheck": "npm run typecheck -w @daily-duel/engine && npm run typecheck -w mobile && npm run typecheck -w functions",
+    "app": "npm run start -w mobile",
+    "app:web": "npm run web -w mobile"
+  }
+}

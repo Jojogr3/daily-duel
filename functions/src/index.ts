@@ -219,7 +219,7 @@ export const getProfile = onCall(callOpts, async (req) => {
       await userRef(uid).set(user, { merge: true });
     }
     const hist = await historyCol(uid).orderBy('dateKey', 'desc').limit(HISTORY_LIMIT).get();
-    return profileView(uid, user, hist.docs.map((d) => d.data() as DuelSummary), utcDateKey(now));
+    return profileView(uid, user, hist.docs.map((d) => d.data() as DuelSummary), utcDateKey(new Date(now)));
   } catch (e) {
     asHttps(e);
   }
@@ -244,7 +244,7 @@ export const getDuelInfo = onCall(callOpts, async (req) => {
     const uid = requireUid(req);
     const mode = requireMode(req.data);
     const now = Date.now();
-    const dateKey = utcDateKey(now);
+    const dateKey = utcDateKey(new Date(now));
     const user = await loadUser(uid, now);
     const plus = await checkPlus(uid, user, now);
     const canPlay = canPlayMode(mode, dateKey, plus);
@@ -267,7 +267,7 @@ export const startDuel = onCall(callOpts, async (req) => {
     const uid = requireUid(req);
     const mode = requireMode(req.data);
     const now = Date.now();
-    const dateKey = utcDateKey(now);
+    const dateKey = utcDateKey(new Date(now));
     const user = await loadUser(uid, now);
     if (!canPlayMode(mode, dateKey, await checkPlus(uid, user, now))) {
       throw new HttpsError('permission-denied', 'This mode needs Daily Duel+ today.');
@@ -305,7 +305,7 @@ export const submitDuel = onCall(callOpts, async (req) => {
     const moves = (req.data as { moves?: unknown } | null)?.moves;
     const now = Date.now();
     // The open duel is normally today's, but may have started yesterday (a round that crossed midnight UTC).
-    const today = utcDateKey(now);
+    const today = utcDateKey(new Date(now));
     const open = async (dateKey: string) => {
       const ref = duelRef(mode, dateKey, uid);
       const snap = await ref.get();

@@ -4,21 +4,14 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  waiting:
-    # Before the one-time Bootstrap run there is no lockfile, so there's nothing to check yet.
-    if: hashFiles('package-lock.json') == ''
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "::notice::Run the 'Bootstrap (run once)' workflow first."
-
   check:
-    if: hashFiles('package-lock.json') != ''
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -27,22 +20,23 @@ jobs:
         with:
           node-version: 22
       - name: Install
-        run: npm ci --no-audit --no-fund
-      - name: Word list present
-        run: |
-          if [ ! -s packages/engine/data/words.txt ]; then
-            echo "::warning::Word list missing. Run the 'Bootstrap' workflow once (Actions tab)."
-            npm run words
-          fi
+        run: npm ci --no-audit --no-fund 2>&1 | tee -a ci.log; exit ${PIPESTATUS[0]}
       - name: Engine and backend tests
-        run: npm test
+        run: npm test 2>&1 | tee -a ci.log; exit ${PIPESTATUS[0]}
       - name: Bundle the app (web export)
         working-directory: apps/mobile
-        run: npx expo export --platform web --output-dir dist
+        run: npx expo export --platform web --output-dir dist 2>&1 | tee -a ../../ci.log; exit ${PIPESTATUS[0]}
       - name: Typecheck
-        run: npm run typecheck
+        run: npm run typecheck 2>&1 | tee -a ci.log; exit ${PIPESTATUS[0]}
       - name: Build backend
-        run: npm run build -w functions
+        run: npm run build -w functions 2>&1 | tee -a ci.log; exit ${PIPESTATUS[0]}
+      - name: Report failure
+        if: failure()
+        # Annotations are readable without downloading logs. Group lines to fit GitHub's per-step limit.
+        run: |
+          grep -E "error|Error|ERR!|failed|not ok|TS[0-9]{4}" ci.log | grep -v "^\s*$" | tail -80 > errs.txt || true
+          split -l 8 errs.txt chunk_
+          for c in chunk_*; do [ -f "$c" ] && echo "::error title=CI failure::$(sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g' "$c")"; done
       - name: Expo doctor
         working-directory: apps/mobile
         run: npx expo-doctor

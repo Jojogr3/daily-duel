@@ -13,11 +13,6 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
   icon: './assets/icon.png',
-  splash: {
-    image: './assets/splash.png',
-    resizeMode: 'contain',
-    backgroundColor: '#FBF7F0',
-  },
   ios: {
     bundleIdentifier: 'com.worldrunnergames.dailyduel',
     supportsTablet: false,
@@ -40,6 +35,10 @@ const config: ExpoConfig = {
   plugins: [
     'expo-router',
     'expo-localization',
+    [
+      'expo-splash-screen',
+      { image: './assets/splash.png', imageWidth: 200, resizeMode: 'contain', backgroundColor: '#FBF7F0' },
+    ],
     ['expo-notifications', { color: '#FF5A4E' }],
     [
       'react-native-google-mobile-ads',

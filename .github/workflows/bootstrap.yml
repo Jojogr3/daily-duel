@@ -1,6 +1,6 @@
 name: Bootstrap (run once)
 
-# One-time setup: installs dependencies at versions matched to the Expo SDK,
+# One-time setup: installs every app package at the version matched to the Expo SDK,
 # downloads the word list, runs the tests, and commits the lockfile and word list.
 on:
   workflow_dispatch:
@@ -11,27 +11,35 @@ permissions:
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Install
-        run: npm install
-      - name: Align packages with the Expo SDK
+      - name: Install base packages
+        run: npm install --no-audit --no-fund 2>&1 | tee install.log
+      - name: Add app packages at Expo-matched versions
         working-directory: apps/mobile
-        run: npx expo install --fix
-      - name: Refresh lockfile
-        run: npm install
+        run: npx --yes expo install $(cat ../../scripts/app-deps.txt) 2>&1 | tee ../../expo-install.log
+      - name: Check versions
+        working-directory: apps/mobile
+        run: npx expo install --check || npx expo install --fix
       - name: Download word list
         run: npm run words
       - name: Test
         run: npm test
+      - name: Report failure
+        if: failure()
+        run: |
+          for f in install.log expo-install.log; do
+            [ -f "$f" ] && grep -iE "err|notarget|eresolve|404|could not|invalid" "$f" | tail -15 | while IFS= read -r line; do echo "::error title=$f::$line"; done
+          done
+          for f in ~/.npm/_logs/*.log; do grep -E "verbose (stack|notarget)|error" "$f" | tail -10 | while IFS= read -r line; do echo "::error title=npm-log::$line"; done; done
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package-lock.json apps/mobile/package.json packages/engine/data apps/mobile/assets/words.txt functions/data
-          git diff --cached --quiet || git commit -m "Bootstrap: lockfile and word list"
+          git diff --cached --quiet || git commit -m "Bootstrap: app packages, lockfile and word list"
           git push

@@ -10,7 +10,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  waiting:
+    # Before the one-time Bootstrap run there is no lockfile, so there's nothing to check yet.
+    if: hashFiles('package-lock.json') == ''
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::notice::Run the 'Bootstrap (run once)' workflow first."
+
   check:
+    if: hashFiles('package-lock.json') != ''
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -19,7 +27,7 @@ jobs:
         with:
           node-version: 22
       - name: Install
-        run: if [ -f package-lock.json ]; then npm ci; else npm install; fi
+        run: npm ci --no-audit --no-fund
       - name: Word list present
         run: |
           if [ ! -s packages/engine/data/words.txt ]; then
